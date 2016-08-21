@@ -1,46 +1,47 @@
+import sys
+import csv
+import matplotlib
 import pandas as pd
 import numpy as np
 import scipy.signal
-import matplotlib.pyplot as mp
+import matplotlib.pyplot as plt
 import matplotlib.mlab as mm
-import csv
-from matplotlib.axis import Axis
+from sympy.physics.units import length
 
-#df = pd.read_csv('/home/ken/git/EMV_test/TypeA_data.csv')
-#df.head()
+def movingaverage(data, window):
+    weights = np.repeat(1.0, window)/window
+    smav = np.convolve(data, weights, 'valid') 
+    return smav
+
+print('Python version ' + sys.version)
+print('Pandas version ' + pd.__version__)
+print('Matplotlib version ' + matplotlib.__version__)
+
+#Read CSV file
+df = pd.read_csv('/home/ken/git/EMV_test/TypeA_data.csv', names=['time','voltage'])
 
 f = 13560000 #Frequency in Hz
 mavg = 1/f #window for the moving average filter
+print('window = ' + str(mavg))
 
-x = []
-y = []
+tmin = df['time'].min()
+tmax = df['time'].max()
+tdelta = (abs(tmin)+tmax)/(len(df.index))
+print('time = ' + str(abs(tmin)+tmax))
+print('delta = '+str(tdelta))
+t_window = mavg/tdelta
+print(t_window)
 
-with open('/home/ken/git/EMV_test/TypeA_data.csv','r') as csvfile:
-    plots = csv.reader(csvfile, delimiter=',')
-    for row in plots:
-        x.append(row[0])
-        y.append(row[1])
-        
-
-# Moving average filter
-
-        
-#  Using the Hilbert transform, find the envelope and zero crossings
-envelope = abs(scipy.signal.hilbert(y))
-phase = np.angle(scipy.signal.hilbert(y))
+#  Using the Hilbert transform, find the envelope and zero crossings  
+envelope = abs(scipy.signal.hilbert(df['voltage']))
+phase = np.angle(scipy.signal.hilbert(df['voltage']))
 zeroCrossing = mm.find(np.diff(np.sign(np.cos(phase)))==2)
 
-Vmax = max(envelope)
-print(Vmax)
+#Moving average
+smav = movingaverage(envelope, t_window)
 
-mp.subplot(211)
-mp.plot(x,y,label='Waveform')
-#mp.hold('on')
-mp.subplot(212)
-mp.plot(x,envelope, 'r',label='Envelope')
-mp.axis('tight')
-mp.xlabel('Time')
-mp.ylabel('Amplitude')
-mp.title('Type A waveform')
-mp.legend()
-mp.show()
+plt.subplot(211)
+plt.plot(df['time'],df['voltage'])
+plt.subplot(212)
+plt.plot(smav, 'r',label='Envelope')
+plt.show()
